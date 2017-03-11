@@ -1,0 +1,353 @@
+\documentclass{beamer}
+
+\usepackage{default}
+\usepackage{listings}
+
+\usetheme{Boadilla}
+%\usecolortheme{spruce}
+
+\title{Predicting recipe sentiment}
+\subtitle{from nutrient composition}
+\author{Mike Touse}
+\date{4 March 2017}
+
+%\setbeamercolor{banner}{fg=green}
+
+\begin{document}
+
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\begin{frame}
+	\frametitle{Outline}
+	\tableofcontents
+\end{frame}
+
+\section{Introduction}
+
+\begin{frame}
+	\frametitle{Introduction}
+	\begin{block}{Recipe success is a high-stakes game}
+		\begin{itemize}
+			\item 10\% of the American labor force is employed by restaurants operating on razor-thin margins.  Offering a recipe that customers will not like wastes precious resources (time and logistics).
+			\item A top recipe website sees 100 million visits every month.  Predicting the success of recipes before receiving feedback allows significant advantage in marketing revenue-generating advertisement space.
+		\end{itemize}  	
+	\end{block}
+
+	\begin{alertblock}{Goal:}
+		Develop a model to predict recipe success, based only on nutrient quantities, to maximize extensibility across features such as ethnicity and audience.
+	\end{alertblock}
+
+\end{frame}
+
+
+
+\section{Data Collection}
+
+\begin{frame}
+	\frametitle{Data collection and distribution}
+	\begin{columns}[t]
+		\column[T]{5cm}
+		\begin{block}{Process}
+			\begin{itemize}
+				\item Query subsets of recipes using individual ingredients to get ratings and recipe id numbers.
+				\item Concatenate subsets into single list of recipes.
+				\item Query individual recipes from compiled list to capture complete recipe information.
+				\item Parse necessary fields into individual components (nutrients).
+			\end{itemize}
+		\end{block}
+		
+		\column[T]{5cm}
+
+		\only<1>{Original data distribution:}
+		\includegraphics<1>[height=3cm]{InitialDistro.png}
+
+		\only<2>{\alert{Final} dataset distribution:}
+		\includegraphics<2->[height=3cm]{FinalDistro.png}
+		
+		\begin{block}{Unbalanced ratings}
+			\begin{itemize}
+				\item <1-> Initial API responses mostly rated 4
+				\item <2-> Adjusted API script to balance dataset
+				\item <2-> Grouped ratings in Favorable (4-5) and Unfavorable (0-3)
+			\end{itemize}
+			
+		\end{block}
+				
+	\end{columns}
+	
+	
+\end{frame}
+
+\begin{frame}{Recipe response to JSON query}
+		
+	\begin{block}{Each includes only nutrients present in the recipe.  Example:}
+		\centering
+		\includegraphics<1>[height=6cm]{APIresponse.png}
+		
+	\end{block}
+
+\end{frame}
+
+\begin{frame}{Data overview}
+	\begin{block}{}
+		\begin{itemize}
+			\item 21,140 recipes
+			\item 113 different nutrients
+			\item Many sparse features
+			\item Scaled to single-serving
+		\end{itemize}
+	\end{block}			
+	\begin{block}{Sample descriptive statistics}
+		\centering
+		\small
+		\begin{tabular}{lccccc}
+			{} &  FAT\_KCAL &         K &         FLD &     PHYSTR &     VAL\_G \\
+			\hline
+			count &   21140 &  21140 &  21140 &  21140 &  21140 \\
+			mean  &      51.6 &      0.16 &      0.0000 &      0.005 &      0.19 \\
+			std   &      94.8 &      0.23 &      0.0000 &      0.015 &      0.34 \\
+			min   &       0.0 &      0.00 &      0.0000 &      0.000 &      0.00 \\
+			25\%   &       4.2 &      0.01 &      0.0000 &      0.000 &      0.00 \\
+			50\%   &      23.3 &      0.08 &      0.0000 &      0.001 &      0.04 \\
+			75\%   &      62.5 &      0.21 &      0.0000 &      0.005 &      0.28 \\
+			max   &    1810.0 &      2.95 &      0.0025 &      0.630 &      5.54 \\
+		\end{tabular}
+		
+	\end{block}
+	
+%	\begin{columns}
+%		\column[T]{5cm}
+%		\column[T]{5cm}
+		 
+%	\end{columns}
+	
+\end{frame}
+
+
+
+\section{Data Exploration}
+
+
+\begin{frame}
+	\frametitle{Data Exploration}
+	\begin{columns}[t]
+		\column[T]{5cm}
+		\begin{block}{Observations}
+			\begin{itemize}
+				\item Positive and negative ratings are largely overlapped
+				\item No linear discriminants
+				\item Correlations are small and mostly negative
+			\end{itemize}
+		\end{block}
+		\begin{block}{Correlation}
+			\includegraphics[height=2.9cm]{corr.png}
+		\end{block}
+		
+		\column[T]{5.5cm}
+		\begin{block}{Illustrative example of two most-important nutrients:}
+		\includegraphics[height=5cm]{smallPair.png}
+		\end{block}
+		
+	\end{columns}
+	
+
+\end{frame}
+
+
+\begin{frame}{Feature positivity}
+	Evaluated portion of recipes rated positively at each decile of each nutrient
+	\begin{columns}[T]
+		\column[T]{7.5cm}
+		\begin{block}{Fraction of positive ratings vs. Decile}
+		\includegraphics[height=5cm]{Decile.png}
+		\end{block}
+	
+		\column[T]{4cm}
+		\begin{itemize}
+			\item Most nutrients exhibit single decile with sharp minimum
+			\item Grouped by min decile (line width is number of nutrients)
+			\item Confirms negative correlation
+		\end{itemize}
+	\end{columns}
+\end{frame}	
+
+\section{Classifiers}
+
+\begin{frame}{Logistic Regression (LR)}
+	
+	\begin{columns}
+		\column[T]{4.5cm}
+		\begin{block}{LR Setup}
+			\begin{itemize}
+				\item Scikit-learn StandardScaler
+				\item L1 penalty for sparsity:  Zero-weights - little impact
+				\item Minimal sensitivity to regularization parameter
+				\item 80/20 train/test split
+			\end{itemize}
+		\end{block}
+		
+		\column[T]{6.5cm}
+		\begin{block}{Feature Weights}
+			\includegraphics[height=4.25cm]{LRweights.png}
+		\end{block}	
+	\end{columns}
+	
+\end{frame}
+
+\begin{frame}{Logistic Regression Results}
+	\begin{columns}
+		\column[T]{6cm}
+		\begin{block}{Performance Metrics}
+			\begin{table}
+				\begin{tabular}{lr}
+					\textbf{Metric} & \textbf{Value} \\
+					\hline
+					Accuracy &  0.66 \\
+					Precision & 0.64 \\
+					Recall & 0.87 \\
+					F1 & 0.73 \\
+					Area under ROC curve & 0.70 \\	
+				\end{tabular}
+			\end{table}
+			
+		\end{block}
+		
+		\column[T]{4cm}
+		\begin{block}{Confusion Matrix}
+			\centering
+			\includegraphics[height=3cm]{lr_cm.png}
+		\end{block}	
+		
+	\end{columns}
+	
+		\begin{block}{Performance observations}
+			\begin{itemize}
+				\item High False Positive Rate (FPR) causes misleading Recall score (artificially high)
+			\end{itemize}
+			
+		\end{block}	
+
+	
+\end{frame}
+
+
+
+\begin{frame}{Random Forest}
+	\begin{block}{Parameters}
+		\begin{itemize}
+			\item 10,000 estimators
+			\item Gini criterion
+			\item Max features: sqrt
+			\item Unscaled (original per-serving data)
+		\end{itemize}
+	\end{block}
+	
+	\begin{block}{Relative feature importance (top 50)}
+		\begin{columns}
+			\column[T]{5cm}
+			\centering
+			\includegraphics[height=4cm]{50importances.png}
+			
+			\column[T]{3cm}
+			\begin{enumerate}
+				\item Water
+				\item Vitamin A
+				\item Starch
+				\item Potassium
+				\item Fiber
+				\item . . .
+			\end{enumerate}
+		\end{columns}
+		
+	\end{block}	
+	
+\end{frame}
+
+
+
+\begin{frame}{Random Forest Results}
+	\begin{columns}
+		\column[T]{6cm}
+		\begin{block}{Performance Metrics}
+			\begin{tabular}{lr}
+				\textbf{Metric} & \textbf{Value} \\
+				\hline
+				Accuracy &  0.74 \\
+				Precision & 0.75 \\
+				Recall & 0.78 \\
+				F1 & 0.76 \\
+				Area under ROC curve & 0.80 \\	
+			\end{tabular}
+		\end{block}
+		
+		\column[T]{4cm}
+		\begin{block}{Confusion Matrix}
+			\centering
+			\includegraphics[height=3cm]{confusionMatrix.png}
+		\end{block}	
+		
+	\end{columns}
+	
+	\begin{block}{Performance observations}
+		\begin{itemize}
+			\item Balanced True Positive Rate and True Negative Rate
+			\item 10\% increase across all metrics (except Recall) relative to LR classifier
+		\end{itemize}
+		
+	\end{block}	
+	
+
+	
+\end{frame}
+
+
+
+
+\section{Conclusion}
+
+\begin{frame}{Conclusion}
+	
+	\begin{block}{Results}
+		\begin{itemize}
+			\item Correctly predicted positive recipe ratings approximately \alert{75\%} of the time (depending on metric used) using \alert{only} nutrients.
+			
+		\end{itemize}		
+	\end{block}	
+
+	\begin{block}{Recommendations}
+		\begin{itemize}
+			\item Restaurants should apply predictive model to recipes prior to preparing them for customers and avoid costly logistics (and potential customer turn-off) while collecting feedback.
+			\item Recipe websites should use prior probabilities from model to tune advertisement sales algorithms.
+			\item Recipe developers should use model discoveries to avoid overuse of specific nutrients.
+			\item Despite mediocre predictive performance, favor inclusion of theobromine and caffeine as the nutrients found most positively correlated with favorability (and heavily concentrated in chocolate).
+		\end{itemize}		
+	\end{block}	
+			
+\end{frame}
+
+%\begin{frame}
+%	\frametitle{What’s Still To Do?}
+%	\begin{block}{Answered Questions}
+%		How many primes are there?
+%	\end{block}
+%	\begin{block}{Open Questions}
+%		Is every even number the sum of two primes?
+%	\end{block}
+%
+%	\begin{definition}
+%		A \alert{prime number} is a number that has exactly two divisors.
+%	\end{definition}
+%	
+%	\begin{example}
+%		\begin{itemize}
+%			\item 2 is prime (two divisors: 1 and 2).
+%			\item 3 is prime (two divisors: 1 and 3).
+%			\item 4 is not prime (\alert{three} divisors: 1, 2, and 4).
+%		\end{itemize}
+%	\end{example}
+%
+%\end{frame}
+
+\end{document}
